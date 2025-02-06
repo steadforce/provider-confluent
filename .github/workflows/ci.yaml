@@ -13,11 +13,12 @@ env:
   GO_VERSION: '1.20'
   GOLANGCI_VERSION: 'v1.54.2'
   DOCKER_BUILDX_VERSION: 'v0.8.2'
+  registry: ghcr.io
 
   # Common users. We can't run a step 'if secrets.XXX != ""' but we can run a
   # step 'if env.XXX != ""', so we copy these to succinctly test whether
   # credentials have been provided before trying to run steps that need them.
-  UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
+  # UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
 
 jobs:
   detect-noop:
@@ -266,6 +267,9 @@ jobs:
 
   publish-artifacts:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
 
@@ -281,13 +285,20 @@ jobs:
           version: ${{ env.DOCKER_BUILDX_VERSION }}
           install: true
 
-      - name: Login to Upbound
-        uses: docker/login-action@v2
-        if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
+      # - name: Login to Upbound
+      #   uses: docker/login-action@v2
+      #   if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
+      #   with:
+      #     registry: xpkg.upbound.io
+      #     username: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
+      #     password: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          registry: xpkg.upbound.io
-          username: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
-          password: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }}
+          registry: ${{ env.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout
         uses: actions/checkout@v2
